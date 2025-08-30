@@ -16,6 +16,7 @@ declare -A COMMAND_MAP=(
 # 自定义命令映射
 declare -A CUSTOM_COMMANDS=(
     ["the"]="tp {PLAYER} home"
+    # 添加更多自定义命令...
 )
 
 # 预设坐标点
@@ -216,6 +217,37 @@ usage() {
     exit 1
 }
 
+# 函数：替换所有简码为完整值
+expand_shortcuts() {
+    local cmd="$1"
+    local player="$2"
+    
+    # 替换玩家占位符
+    cmd="${cmd//\{PLAYER\}/$player}"
+    
+    # 替换坐标简码
+    for loc in "${!LOCATIONS[@]}"; do
+        cmd="${cmd//$loc/${LOCATIONS[$loc]}}"
+    done
+    
+    # 替换物品简码
+    for item in "${!ITEM_ALIASES[@]}"; do
+        cmd="${cmd//$item/${ITEM_ALIASES[$item]}}"
+    done
+    
+    # 替换生物简码
+    for entity in "${!ENTITY_ALIASES[@]}"; do
+        cmd="${cmd//$entity/${ENTITY_ALIASES[$entity]}}"
+    done
+    
+    # 替换效果简码
+    for effect in "${!EFFECTS[@]}"; do
+        cmd="${cmd//$effect/${EFFECTS[$effect]}}"
+    done
+    
+    echo "$cmd"
+}
+
 # 检查参数数量
 if [ $# -eq 0 ]; then
     echo "错误: 参数不足"
@@ -246,8 +278,8 @@ else
             PLAYER="$DEFAULT_PLAYER"
         fi
         
-        # 替换模板中的占位符
-        FINAL_CMD="${CMD_TEMPLATE//\{PLAYER\}/$PLAYER}"
+        # 替换所有简码为完整值
+        FINAL_CMD=$(expand_shortcuts "$CMD_TEMPLATE" "$PLAYER")
     else
         # 解析头值命令
         if [[ -n "${COMMAND_MAP[$HEAD]}" ]]; then
@@ -260,21 +292,43 @@ else
         case "$CMD" in
             "tp")
                 # 处理传送命令
-                if [[ -n "${LOCATIONS[$EXTRA_VAL]}" ]]; then
-                    COORDS="${LOCATIONS[$EXTRA_VAL]}"
+                # 确定玩家ID
+                if [[ -n "$USER_VAL" && ! "$USER_VAL" =~ ^- ]]; then
+                    PLAYER="$USER_VAL"
+                    LOCATION="$EXTRA_VAL"
                 else
-                    COORDS="$EXTRA_VAL"
+                    PLAYER="$DEFAULT_PLAYER"
+                    LOCATION="$USER_VAL"
                 fi
-                FINAL_CMD="tp $USER_VAL $COORDS"
+                
+                # 检查是否是预设位置
+                if [[ -n "${LOCATIONS[$LOCATION]}" ]]; then
+                    COORDS="${LOCATIONS[$LOCATION]}"
+                else
+                    COORDS="$LOCATION"
+                fi
+                
+                FINAL_CMD="tp $PLAYER $COORDS"
                 ;;
             "give")
                 # 处理给予命令
-                # 检查是否是物品简码
-                ITEM="$EXTRA_VAL"
-                if [[ -n "${ITEM_ALIASES[$EXTRA_VAL]}" ]]; then
-                    ITEM="${ITEM_ALIASES[$EXTRA_VAL]}"
+                # 确定玩家ID
+                if [[ -n "$USER_VAL" && ! "$USER_VAL" =~ ^- ]]; then
+                    PLAYER="$USER_VAL"
+                    ITEM="$EXTRA_VAL"
+                    QUANTITY="$EXTRA_VAL1"
+                else
+                    PLAYER="$DEFAULT_PLAYER"
+                    ITEM="$USER_VAL"
+                    QUANTITY="$EXTRA_VAL"
                 fi
-                FINAL_CMD="give $USER_VAL $ITEM ${EXTRA_VAL1:-64}"
+                
+                # 检查是否是物品简码
+                if [[ -n "${ITEM_ALIASES[$ITEM]}" ]]; then
+                    ITEM="${ITEM_ALIASES[$ITEM]}"
+                fi
+                
+                FINAL_CMD="give $PLAYER $ITEM ${QUANTITY:-64}"
                 ;;
             "fill")
                 # 处理填充命令
@@ -309,23 +363,37 @@ else
                 ;;
             "effect")
                 # 处理效果命令
+                # 确定玩家ID
+                if [[ -n "$USER_VAL" && ! "$USER_VAL" =~ ^- ]]; then
+                    PLAYER="$USER_VAL"
+                    EFFECT="$EXTRA_VAL"
+                    DURATION="$EXTRA_VAL1"
+                    AMPLIFIER="$EXTRA_VAL2"
+                else
+                    PLAYER="$DEFAULT_PLAYER"
+                    EFFECT="$USER_VAL"
+                    DURATION="$EXTRA_VAL"
+                    AMPLIFIER="$EXTRA_VAL1"
+                fi
+                
                 # 检查效果是否是名称，如果是则转换为ID
-                EFFECT_ID="$EXTRA_VAL"
-                if [[ -n "${EFFECTS[$EXTRA_VAL]}" ]]; then
-                    EFFECT_ID="${EFFECTS[$EXTRA_VAL]}"
+                if [[ -n "${EFFECTS[$EFFECT]}" ]]; then
+                    EFFECT_ID="${EFFECTS[$EFFECT]}"
+                else
+                    EFFECT_ID="$EFFECT"
                 fi
                 
                 # 设置默认值
-                DURATION="${EXTRA_VAL1:-10000}"  # 默认10000 ticks (约500秒)
-                AMPLIFIER="${EXTRA_VAL2:-255}"   # 默认强度255
+                DURATION="${DURATION:-10000}"  # 默认10000 ticks (约500秒)
+                AMPLIFIER="${AMPLIFIER:-255}"   # 默认强度255
                 
                 # 如果提供的是秒数而不是tick数，转换为tick数 (1秒 = 20ticks)
                 if [[ "$DURATION" =~ ^[0-9]+$ ]] && [ "$DURATION" -lt 1000 ]; then
                     DURATION=$((DURATION * 20))
-                    echo "注意: 已将秒数转换为tick数: $EXTRA_VAL1秒 = $DURATION ticks"
+                    echo "注意: 已将秒数转换为tick数: $DURATION ticks"
                 fi
                 
-                FINAL_CMD="effect give $USER_VAL $EFFECT_ID $DURATION $AMPLIFIER"
+                FINAL_CMD="effect give $PLAYER $EFFECT_ID $DURATION $AMPLIFIER"
                 ;;
             "summon")
                 # 处理召唤命令
@@ -336,10 +404,14 @@ else
                 fi
                 
                 # 处理坐标
-                if [[ -n "${LOCATIONS[$EXTRA_VAL]}" ]]; then
-                    COORDS="${LOCATIONS[$EXTRA_VAL]}"
+                if [[ -n "$EXTRA_VAL" ]]; then
+                    if [[ -n "${LOCATIONS[$EXTRA_VAL]}" ]]; then
+                        COORDS="${LOCATIONS[$EXTRA_VAL]}"
+                    else
+                        COORDS="$EXTRA_VAL"
+                    fi
                 else
-                    COORDS="$EXTRA_VAL"
+                    COORDS="~ ~ ~"  # 默认在当前位置召唤
                 fi
                 
                 FINAL_CMD="summon $ENTITY $COORDS"
