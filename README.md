@@ -20,7 +20,7 @@ Minecraft 服务器管理脚本 (mc3.sh)
 1. 将脚本下载到您的服务器：
 
 ```bash
-wget https://raw.githubusercontent.com/yourusername/mc3-sh/main/mc3.sh
+wget https://github.com/AXWV/mc_screen_sh/main/mc3.sh
 chmod +x mc3.sh
 ```
 
@@ -307,7 +307,7 @@ chmod +x mc3.sh
 
 📄 许可证
 
-本项目采用 MIT 许可证。详情请参阅 LICENSE 文件。
+有不起
 
 📝 更新日志
 
