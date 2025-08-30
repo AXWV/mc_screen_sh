@@ -13,13 +13,15 @@ declare -A COMMAND_MAP=(
     ["s"]="summon"
 )
 
+# 自定义命令映射
+declare -A CUSTOM_COMMANDS=(
+    ["the"]="tp {PLAYER} home"
+)
+
 # 预设坐标点
 declare -A LOCATIONS=(
     ["home"]="80 70 -175"
     ["birthplace"]="5000 67 -174"
-    ["spawn"]="0 64 0"
-    ["nether"]="13 70 7"
-    ["end"]="100 49 0"
 )
 
 # 效果ID映射（常用效果）
@@ -155,7 +157,7 @@ usage() {
     echo "用法: $0 [头值] [用户值] [附加值] [附加值1] [附加值2]"
     echo "或:    $0 '完整命令'"
     echo ""
-    echo "头值: tp/t, give/g, fill/f, effect/e, summon/s 或完整命令"
+    echo "头值: tp/t, give/g, fill/f, effect/e, summon/s 或自定义命令"
     echo "用户值: 玩家ID(默认AXWV3825) 或坐标(用于fill)"
     echo "附加值: "
     echo "  - tp: 坐标/坐标简码/玩家"
@@ -179,6 +181,8 @@ usage() {
     echo "  $0 e AXWV3825 speed 60    # 给玩家速度效果60秒，默认强度255"
     echo "  $0 e AXWV3825 speed 60 1  # 给玩家速度效果60秒，强度1"
     echo "  $0 s cow home             # 在home位置召唤牛"
+    echo "  $0 tohome                 # 传送默认玩家回家(自定义命令)"
+    echo "  $0 givediamonds           # 给默认玩家64个钻石(自定义命令)"
     echo "  $0 'say Hello World'      # 直接执行完整命令"
     echo ""
     echo "预设位置:"
@@ -186,10 +190,16 @@ usage() {
         echo "  $loc: ${LOCATIONS[$loc]}"
     done
     echo ""
+    echo "自定义命令:"
+    for cmd in "${!CUSTOM_COMMANDS[@]}"; do
+        echo "  $cmd: ${CUSTOM_COMMANDS[$cmd]}"
+    done | head -5
+    echo "  ... (更多自定义命令可用)"
+    echo ""
     echo "可用效果:"
     for eff in "${!EFFECTS[@]}"; do
         echo "  $eff (ID: ${EFFECTS[$eff]})"
-    done | head -10
+    done | head -5
     echo "  ... (更多效果可用，使用效果名或ID)"
     echo ""
     echo "物品简码示例:"
@@ -224,106 +234,122 @@ else
     EXTRA_VAL1="$4"
     EXTRA_VAL2="$5"
 
-    # 解析头值命令
-    if [[ -n "${COMMAND_MAP[$HEAD]}" ]]; then
-        CMD="${COMMAND_MAP[$HEAD]}"
+    # 首先检查是否是自定义命令
+    if [[ -n "${CUSTOM_COMMANDS[$HEAD]}" ]]; then
+        # 处理自定义命令
+        CMD_TEMPLATE="${CUSTOM_COMMANDS[$HEAD]}"
+        
+        # 确定玩家ID
+        if [[ -n "$USER_VAL" && ! "$USER_VAL" =~ ^- ]]; then
+            PLAYER="$USER_VAL"
+        else
+            PLAYER="$DEFAULT_PLAYER"
+        fi
+        
+        # 替换模板中的占位符
+        FINAL_CMD="${CMD_TEMPLATE//\{PLAYER\}/$PLAYER}"
     else
-        CMD="$HEAD"
-    fi
+        # 解析头值命令
+        if [[ -n "${COMMAND_MAP[$HEAD]}" ]]; then
+            CMD="${COMMAND_MAP[$HEAD]}"
+        else
+            CMD="$HEAD"
+        fi
 
-    # 根据命令类型处理
-    case "$CMD" in
-        "tp")
-            # 处理传送命令
-            if [[ -n "${LOCATIONS[$EXTRA_VAL]}" ]]; then
-                COORDS="${LOCATIONS[$EXTRA_VAL]}"
-            else
-                COORDS="$EXTRA_VAL"
-            fi
-            FINAL_CMD="tp $USER_VAL $COORDS"
-            ;;
-        "give")
-            # 处理给予命令
-            # 检查是否是物品简码
-            ITEM="$EXTRA_VAL"
-            if [[ -n "${ITEM_ALIASES[$EXTRA_VAL]}" ]]; then
-                ITEM="${ITEM_ALIASES[$EXTRA_VAL]}"
-            fi
-            FINAL_CMD="give $USER_VAL $ITEM ${EXTRA_VAL1:-64}"
-            ;;
-        "fill")
-            # 处理填充命令
-            # 检查用户值是否是坐标(包含空格)
-            if [[ "$USER_VAL" == *" "* ]]; then
-                # 用户值是坐标，直接使用
-                COORDS1="$USER_VAL"
-                COORDS2="$EXTRA_VAL"
-                BLOCK="$EXTRA_VAL1"
-                
+        # 根据命令类型处理
+        case "$CMD" in
+            "tp")
+                # 处理传送命令
+                if [[ -n "${LOCATIONS[$EXTRA_VAL]}" ]]; then
+                    COORDS="${LOCATIONS[$EXTRA_VAL]}"
+                else
+                    COORDS="$EXTRA_VAL"
+                fi
+                FINAL_CMD="tp $USER_VAL $COORDS"
+                ;;
+            "give")
+                # 处理给予命令
                 # 检查是否是物品简码
-                if [[ -n "${ITEM_ALIASES[$BLOCK]}" ]]; then
-                    BLOCK="${ITEM_ALIASES[$BLOCK]}"
+                ITEM="$EXTRA_VAL"
+                if [[ -n "${ITEM_ALIASES[$EXTRA_VAL]}" ]]; then
+                    ITEM="${ITEM_ALIASES[$EXTRA_VAL]}"
                 fi
-            else
-                # 用户值是玩家ID，需要额外的坐标参数
-                if [ $# -lt 4 ]; then
-                    echo "错误: fill命令需要两个坐标和一个方块参数"
-                    usage
+                FINAL_CMD="give $USER_VAL $ITEM ${EXTRA_VAL1:-64}"
+                ;;
+            "fill")
+                # 处理填充命令
+                # 检查用户值是否是坐标(包含空格)
+                if [[ "$USER_VAL" == *" "* ]]; then
+                    # 用户值是坐标，直接使用
+                    COORDS1="$USER_VAL"
+                    COORDS2="$EXTRA_VAL"
+                    BLOCK="$EXTRA_VAL1"
+                    
+                    # 检查是否是物品简码
+                    if [[ -n "${ITEM_ALIASES[$BLOCK]}" ]]; then
+                        BLOCK="${ITEM_ALIASES[$BLOCK]}"
+                    fi
+                else
+                    # 用户值是玩家ID，需要额外的坐标参数
+                    if [ $# -lt 4 ]; then
+                        echo "错误: fill命令需要两个坐标和一个方块参数"
+                        usage
+                    fi
+                    COORDS1="$EXTRA_VAL"
+                    COORDS2="$EXTRA_VAL1"
+                    BLOCK="$5"  # 需要第五个参数作为方块
+                    
+                    # 检查是否是物品简码
+                    if [[ -n "${ITEM_ALIASES[$BLOCK]}" ]]; then
+                        BLOCK="${ITEM_ALIASES[$BLOCK]}"
+                    fi
+                    shift
                 fi
-                COORDS1="$EXTRA_VAL"
-                COORDS2="$EXTRA_VAL1"
-                BLOCK="$5"  # 需要第五个参数作为方块
+                FINAL_CMD="fill $COORDS1 $COORDS2 $BLOCK"
+                ;;
+            "effect")
+                # 处理效果命令
+                # 检查效果是否是名称，如果是则转换为ID
+                EFFECT_ID="$EXTRA_VAL"
+                if [[ -n "${EFFECTS[$EXTRA_VAL]}" ]]; then
+                    EFFECT_ID="${EFFECTS[$EXTRA_VAL]}"
+                fi
                 
-                # 检查是否是物品简码
-                if [[ -n "${ITEM_ALIASES[$BLOCK]}" ]]; then
-                    BLOCK="${ITEM_ALIASES[$BLOCK]}"
+                # 设置默认值
+                DURATION="${EXTRA_VAL1:-10000}"  # 默认10000 ticks (约500秒)
+                AMPLIFIER="${EXTRA_VAL2:-255}"   # 默认强度255
+                
+                # 如果提供的是秒数而不是tick数，转换为tick数 (1秒 = 20ticks)
+                if [[ "$DURATION" =~ ^[0-9]+$ ]] && [ "$DURATION" -lt 1000 ]; then
+                    DURATION=$((DURATION * 20))
+                    echo "注意: 已将秒数转换为tick数: $EXTRA_VAL1秒 = $DURATION ticks"
                 fi
-                shift
-            fi
-            FINAL_CMD="fill $COORDS1 $COORDS2 $BLOCK"
-            ;;
-        "effect")
-            # 处理效果命令
-            # 检查效果是否是名称，如果是则转换为ID
-            EFFECT_ID="$EXTRA_VAL"
-            if [[ -n "${EFFECTS[$EXTRA_VAL]}" ]]; then
-                EFFECT_ID="${EFFECTS[$EXTRA_VAL]}"
-            fi
-            
-            # 设置默认值
-            DURATION="${EXTRA_VAL1:-10000}"  # 默认10000 ticks (约500秒)
-            AMPLIFIER="${EXTRA_VAL2:-255}"   # 默认强度255
-            
-            # 如果提供的是秒数而不是tick数，转换为tick数 (1秒 = 20ticks)
-            if [[ "$DURATION" =~ ^[0-9]+$ ]] && [ "$DURATION" -lt 1000 ]; then
-                DURATION=$((DURATION * 20))
-                echo "注意: 已将秒数转换为tick数: $EXTRA_VAL1秒 = $DURATION ticks"
-            fi
-            
-            FINAL_CMD="effect give $USER_VAL $EFFECT_ID $DURATION $AMPLIFIER"
-            ;;
-        "summon")
-            # 处理召唤命令
-            # 检查是否是生物简码
-            ENTITY="$USER_VAL"
-            if [[ -n "${ENTITY_ALIASES[$USER_VAL]}" ]]; then
-                ENTITY="${ENTITY_ALIASES[$USER_VAL]}"
-            fi
-            
-            # 处理坐标
-            if [[ -n "${LOCATIONS[$EXTRA_VAL]}" ]]; then
-                COORDS="${LOCATIONS[$EXTRA_VAL]}"
-            else
-                COORDS="$EXTRA_VAL"
-            fi
-            
-            FINAL_CMD="summon $ENTITY $COORDS"
-            ;;
-        *)
-            # 未知命令，直接传递所有参数
-            FINAL_CMD="$HEAD $USER_VAL $EXTRA_VAL $EXTRA_VAL1 $EXTRA_VAL2"
-            ;;
-    esac
+                
+                FINAL_CMD="effect give $USER_VAL $EFFECT_ID $DURATION $AMPLIFIER"
+                ;;
+            "summon")
+                # 处理召唤命令
+                # 检查是否是生物简码
+                ENTITY="$USER_VAL"
+                if [[ -n "${ENTITY_ALIASES[$USER_VAL]}" ]]; then
+                    ENTITY="${ENTITY_ALIASES[$USER_VAL]}"
+                fi
+                
+                # 处理坐标
+                if [[ -n "${LOCATIONS[$EXTRA_VAL]}" ]]; then
+                    COORDS="${LOCATIONS[$EXTRA_VAL]}"
+                else
+                    COORDS="$EXTRA_VAL"
+                fi
+                
+                FINAL_CMD="summon $ENTITY $COORDS"
+                ;;
+            *)
+                # 未知命令，直接传递所有参数
+                FINAL_CMD="$HEAD $USER_VAL $EXTRA_VAL $EXTRA_VAL1 $EXTRA_VAL2"
+                ;;
+        esac
+    fi
 fi
 
 # 检查screen会话是否存在
