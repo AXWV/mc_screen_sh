@@ -1,25 +1,26 @@
-# mc_screen_sh
-通过在服务器端执行命令到指定运行我的世界基岩版screen会话
 Minecraft 服务器管理脚本 (mc3.sh)
 
 一个功能强大的 Bash 脚本，用于简化 Minecraft 服务器的命令执行和管理。通过简码和预设配置，让服务器管理变得更加高效便捷。
 
-功能特点
+✨ 功能特点
 
-· 🚀 支持多种 Minecraft 命令（tp、give、fill、effect、summon）
-· ⚡ 命令简码系统，减少输入量
-· 📍 预设坐标点，快速传送
-· 🎯 物品和生物简码映射
-· ⏱️ 效果命令默认参数，简化操作
-· 💻 通过 screen 会话与服务器交互
-· 🔧 高度可自定义的配置
+· 🚀 多命令支持 - 支持 tp、give、fill、effect、summon 等常用命令
+· ⚡ 命令简码系统 - 使用单字母简码减少输入量 (t=tp, g=give, e=effect, s=summon, f=fill)
+· 📍 预设坐标点 - 内置常用坐标点，支持自定义添加
+· 🎯 物品和生物简码 - 使用简码代替完整物品/生物名称
+· ⏱️ 智能默认值 - effect 命令自动设置合理默认值
+· 💻 Screen 会话集成 - 通过 screen 会话与服务器交互
+· 🔧 高度可定制 - 所有简码和预设均可自定义
+· 🎮 完整命令支持 - 可直接执行任意 Minecraft 命令
 
-安装与配置
+📦 安装与配置
+
+基本安装
 
 1. 将脚本下载到您的服务器：
 
 ```bash
-wget https://raw.githubusercontent.com/yourusername/yourrepository/main/mc3.sh
+wget https://raw.githubusercontent.com/yourusername/mc3-sh/main/mc3.sh
 chmod +x mc3.sh
 ```
 
@@ -29,13 +30,33 @@ chmod +x mc3.sh
 screen -S mine -d -m java -Xmx4G -jar server.jar nogui
 ```
 
-1. 根据需要自定义脚本中的配置（可选）：
+自定义配置
 
-· 修改默认玩家 ID
-· 添加或修改预设坐标点
-· 自定义物品和生物简码
+编辑脚本文件以自定义以下设置：
 
-使用方法
+```bash
+# 默认配置
+SESSION_NAME="mine"          # Screen 会话名称
+DEFAULT_PLAYER="AXWV3825"    # 默认玩家ID
+
+# 添加自定义坐标点
+LOCATIONS["village"]="1200 64 -500"
+LOCATIONS["mine"]="85 11 -200"
+
+# 添加自定义物品简码
+ITEM_ALIASES["wsword"]="wooden_sword"
+ITEM_ALIASES["cobble"]="cobblestone"
+
+# 添加自定义生物简码
+ENTITY_ALIASES["cave"]="cave_spider"
+ENTITY_ALIASES["ender"]="endermite"
+
+# 添加自定义命令简码
+CUSTOM_COMMANDS["tohome"]="tp {PLAYER} home"
+CUSTOM_COMMANDS["givediamonds"]="give {PLAYER} diamond 64"
+```
+
+🚀 使用方法
 
 直接执行完整命令
 
@@ -62,8 +83,9 @@ screen -S mine -d -m java -Xmx4G -jar server.jar nogui
 示例：
 
 ```bash
-./mc3.sh t AXWV3825 home
-./mc3.sh tp AXWV3825 100 64 100
+./mc3.sh t AXWV3825 home          # 传送到home位置
+./mc3.sh tp AXWV3825 100 64 100   # 传送到指定坐标
+./mc3.sh t home                   # 使用默认玩家传送到home
 ```
 
 给予物品命令 (give/g)
@@ -75,8 +97,9 @@ screen -S mine -d -m java -Xmx4G -jar server.jar nogui
 示例：
 
 ```bash
-./mc3.sh g AXWV3825 diamond 5
-./mc3.sh give AXWV3825 sw 1  # 使用物品简码"sw"(钻石剑)
+./mc3.sh g AXWV3825 diamond 5     # 给予5个钻石
+./mc3.sh give AXWV3825 sw 1       # 给予1个钻石剑(sw简码)
+./mc3.sh g diamond 64             # 给默认玩家64个钻石
 ```
 
 填充命令 (fill/f)
@@ -88,7 +111,7 @@ screen -S mine -d -m java -Xmx4G -jar server.jar nogui
 示例：
 
 ```bash
-./mc3.sh f 0 64 0 10 70 10 stone
+./mc3.sh f 0 64 0 10 70 10 stone  # 用石头填充区域
 ./mc3.sh fill "0 64 0" "10 70 10" block  # 使用方块简码"block"(钻石块)
 ```
 
@@ -101,9 +124,10 @@ screen -S mine -d -m java -Xmx4G -jar server.jar nogui
 示例：
 
 ```bash
-./mc3.sh e AXWV3825 speed        # 默认10000ticks和强度255
-./mc3.sh effect AXWV3825 speed 60    # 60秒，默认强度255
-./mc3.sh e AXWV3825 16 60 1      # 使用效果ID(16=夜视)
+./mc3.sh e AXWV3825 speed         # 默认10000ticks和强度255
+./mc3.sh effect AXWV3825 speed 60 # 60秒，默认强度255
+./mc3.sh e AXWV3825 16 60 1       # 使用效果ID(16=夜视)
+./mc3.sh e speed 30               # 给默认玩家速度效果30秒
 ```
 
 召唤命令 (summon/s)
@@ -115,11 +139,26 @@ screen -S mine -d -m java -Xmx4G -jar server.jar nogui
 示例：
 
 ```bash
-./mc3.sh s cow home             # 在home位置召唤牛
+./mc3.sh s cow home               # 在home位置召唤牛
 ./mc3.sh summon zombie 100 64 100 # 在指定坐标召唤僵尸
+./mc3.sh s cow                    # 在默认位置召唤牛
 ```
 
-配置说明
+自定义命令
+
+```bash
+./mc3.sh [自定义命令] [参数]
+```
+
+示例：
+
+```bash
+./mc3.sh tohome                   # 传送默认玩家回家
+./mc3.sh givediamonds             # 给默认玩家64个钻石
+./mc3.sh tohome AXWV3825          # 传送指定玩家回家
+```
+
+⚙️ 配置说明
 
 预设坐标点
 
@@ -130,6 +169,8 @@ declare -A LOCATIONS=(
     ["home"]="80 70 -175"
     ["birthplace"]="5000 67 -174"
     ["spawn"]="0 64 0"
+    ["nether"]="13 70 7"
+    ["end"]="100 49 0"
     # 添加更多坐标点...
 )
 ```
@@ -143,6 +184,7 @@ declare -A ITEM_ALIASES=(
     ["sw"]="diamond_sword"
     ["pick"]="diamond_pickaxe"
     ["block"]="diamond_block"
+    ["ingot"]="iron_ingot"
     # 添加更多物品简码...
 )
 ```
@@ -169,20 +211,26 @@ declare -A EFFECTS=(
     ["speed"]=1
     ["night_vision"]=16
     ["strength"]=5
+    ["invisibility"]=14
     # 更多效果...
 )
 ```
 
-高级用法
+自定义命令
 
-自定义默认值
-
-您可以修改脚本开头的默认配置：
+您可以添加自定义命令简码：
 
 ```bash
-SESSION_NAME="mine"          # screen 会话名称
-DEFAULT_PLAYER="AXWV3825"    # 默认玩家ID
+declare -A CUSTOM_COMMANDS=(
+    ["tohome"]="tp {PLAYER} home"
+    ["tospawn"]="tp {PLAYER} spawn"
+    ["givediamonds"]="give {PLAYER} diamond 64"
+    ["giveop"]="give {PLAYER} diamond_pickaxe 1"
+    # 添加更多自定义命令...
+)
 ```
+
+🛠️ 高级用法
 
 批量命令执行
 
@@ -197,14 +245,33 @@ sleep 10
 ./mc3.sh 'restart'
 ```
 
-注意事项
+与其他脚本集成
+
+```bash
+#!/bin/bash
+# 备份服务器并通知玩家
+./mc3.sh 'say 开始服务器备份'
+./backup-server.sh
+./mc3.sh 'say 备份完成'
+```
+
+定时任务
+
+使用 crontab 设置定时任务：
+
+```bash
+# 每天凌晨3点重启服务器
+0 3 * * * /path/to/mc3.sh 'say 每日重启中...' && /path/to/mc3.sh 'restart'
+```
+
+🚨 注意事项
 
 1. 确保 Minecraft 服务器运行在指定的 screen 会话中
 2. 脚本需要执行权限：chmod +x mc3.sh
 3. 确保您有权限执行 Minecraft 命令
 4. 坐标格式为 "x y z"，注意使用引号包含空格
 
-故障排除
+🔧 故障排除
 
 Screen 会话不存在
 
@@ -224,15 +291,37 @@ screen -S mine -X stuff "java -Xmx4G -jar server.jar nogui\n"
 chmod +x mc3.sh
 ```
 
-贡献
+命令不执行
+
+检查 Minecraft 服务器是否正常运行，并且有 OP 权限执行命令。
+
+🤝 贡献
 
 欢迎提交 Issue 和 Pull Request 来改进这个项目！
 
-许可证
+1. Fork 本项目
+2. 创建特性分支：git checkout -b feature/AmazingFeature
+3. 提交更改：git commit -m 'Add some AmazingFeature'
+4. 推送到分支：git push origin feature/AmazingFeature
+5. 提交 Pull Request
 
-有不起
+📄 许可证
 
-更新日志
+本项目采用 MIT 许可证。详情请参阅 LICENSE 文件。
+
+📝 更新日志
+
+v1.2.0
+
+· 新增自定义命令功能
+· 支持 {PLAYER} 占位符
+· 改进帮助信息
+
+v1.1.0
+
+· 添加物品和生物简码支持
+· 添加 effect 命令默认值
+· 支持直接执行完整命令
 
 v1.0.0
 
@@ -240,7 +329,6 @@ v1.0.0
 · 支持 tp、give、fill、effect、summon 命令
 · 添加命令简码系统
 · 支持预设坐标点
-· 添加物品和生物简码映射
 
 ---
 
