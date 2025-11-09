@@ -1,5 +1,5 @@
 #!/bin/bash
-#version:1.3.0
+#version:1.3.1
 # 默认配置
 # [""]=""
 SESSION_NAME="mcbedrock"
@@ -84,7 +84,7 @@ load_external_mappings
 
 # 显示帮助信息
 usage() {
-    echo "version:1.3.0"
+    echo "version:1.3.1"
     echo "用法:"
     echo "  直接命令: $0 [-s session_name] '命令'"
     echo "  传送命令:"
@@ -420,3 +420,9 @@ fi
 # 向tmux会话发送命令
 tmux send-keys -t "$SESSION_NAME" "$FINAL_CMD" Enter
 echo "命令已发送到tmux会话 '$SESSION_NAME': $FINAL_CMD"
+# 等待命令执行并读取2行内容显示执行结果
+echo "正在读取执行结果..."
+sleep 1  # 等待命令执行
+echo "=== 最近2行输出 ==="
+tmux capture-pane -p -t "$SESSION_NAME" | tail -n 2
+echo "=================="
